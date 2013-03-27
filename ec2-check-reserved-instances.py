@@ -32,26 +32,35 @@ def get_region():
             choices=boto.ec2.regions)
     return propget.get(prop, choices=boto.ec2.regions)
 
+def remove_zero(adict):
+    """ prune dict """
+    if type(adict) != dict:
+        return
+    for k,v in adict.items():
+        if v == 0:
+            adict.pop(k)
+
 region = get_region()
 ec2_conn = boto.ec2.connect_to_region(region.name)
 reservations = ec2_conn.get_all_instances()
 
 running_instances = {}
 for reservation in reservations:
-	for instance in reservation.instances:
-		if instance.state != "running":
-			sys.stderr.write("Disqualifying instance %s: not running\n" % ( instance.id ) )
-		elif instance.spot_instance_request_id:
-			sys.stderr.write("Disqualifying instance %s: spot\n" % ( instance.id ) )
-		else:
-			if instance.vpc_id:
-				print "Does not support vpc yet, please be careful when trusting these results"
-			else:
-				az = instance.placement
-				instance_type = instance.instance_type
-				running_instances[ (instance_type, az ) ] = running_instances.get( (instance_type, az ) , 0 ) + 1
+    for instance in reservation.instances:
+        if instance.state != "running":
+            sys.stderr.write("Disqualifying instance %s: not running\n" % ( instance.id ) )
+        elif instance.spot_instance_request_id:
+            sys.stderr.write("Disqualifying instance %s: spot\n" % ( instance.id ) )
+        else:
+            if instance.vpc_id:
+                print "Does not support vpc yet, please be careful when trusting these results"
+            else:
+                az = instance.placement
+                instance_type = instance.instance_type
+                running_instances[ (instance_type, az ) ] = running_instances.get( (instance_type, az ) , 0 ) + 1
 
-
+#prune running_instances
+remove_zero(running_instances)
 # pprint( running_instances )
 
 
@@ -64,8 +73,12 @@ for reserved_instance in ec2_conn.get_all_reserved_instances():
 		instance_type = reserved_instance.instance_type
 		reserved_instances[( instance_type, az) ] = reserved_instances.get ( (instance_type, az ), 0 )  + reserved_instance.instance_count
 
+#prune reserved_instances
+remove_zero(reserved_instances)
 # pprint( reserved_instances )
-
+if not running_instances and not reserved_instances:
+    print "You does use this region."
+    sys.exit(0)
 
 # this dict will have a positive number if there are unused reservations
 # and negative number if an instance is on demand
