@@ -2,8 +2,13 @@
 
 import sys
 import os
-import boto
 from pprint import pprint
+
+import boto
+import boto.ec2
+from boto.sdb.db.property import StringProperty, IntegerProperty
+from boto.manage import propget
+
 
 # You can uncomment and set these, or set the env variables AWSAccessKeyId & AWSSecretKey
 # AWS_ACCESS_KEY_ID="aaaaaaaaaaaaaaaaaaaa"
@@ -21,7 +26,14 @@ from pprint import pprint
 
 
 #ec2_conn = boto.connect_ec2(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
-ec2_conn = boto.connect_ec2()
+
+def get_region():
+    prop = StringProperty(name='region', verbose_name='EC2 Region',
+            choices=boto.ec2.regions)
+    return propget.get(prop, choices=boto.ec2.regions)
+
+region = get_region()
+ec2_conn = boto.ec2.connect_to_region(region.name)
 reservations = ec2_conn.get_all_instances()
 
 running_instances = {}
